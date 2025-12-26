@@ -1,0 +1,1 @@
+This is an image of a standing penguin, composed of tangram components.

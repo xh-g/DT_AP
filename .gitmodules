@@ -1,0 +1,3 @@
+[submodule "kilogram"]
+	path = kilogram
+	url = https://github.com/lil-lab/kilogram.git
