@@ -1,0 +1,5 @@
+[default]
+entity = frostdust-zhejiang-university
+project = vq_gan_train
+base_url = https://api.wandb.ai
+

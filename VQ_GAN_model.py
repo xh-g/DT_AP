@@ -60,6 +60,17 @@ class ResBlock(nn.Module):
 
 class VQGAN(nn.Module):
     def __init__(self, in_channels=3, embedding_dim=64, num_embeddings=256):
+        """
+        VQ-GAN for Tangram generation.
+        Args:
+            in_channels: Input image channels (3 for RGB).
+            embedding_dim: Dimension of codebook vectors (64).
+            num_embeddings: Size of codebook (256 or 512 recommended for simple geometry).
+        
+        Architecture:
+            Encoder: 256x256 -> 16x16 (Downsample factor f=16)
+            Decoder: 16x16 -> 256x256
+        """
         super().__init__()
         # Encoder: 256x256 -> 16x16 (Downsample factor 16 = 2^4)
         self.encoder = nn.Sequential(

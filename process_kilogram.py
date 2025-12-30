@@ -38,64 +38,31 @@ def process():
         annotations = {}
     
     # 3. List Images
-    # Strategy: Try to find local directory relative to the JSON file first to avoid network calls
-    # json_path is typically .../snapshots/<hash>/training/texts/train_whole.json
-    # We want to find .../snapshots/<hash>/training/images/train-black
-    
-    local_images_dir = os.path.join(os.path.dirname(json_path), "../images/train-black")
-    local_images_dir = os.path.normpath(local_images_dir)
-    
-    image_files_to_process = [] # List of (filename, full_path_or_repo_id)
-    
-    if os.path.exists(local_images_dir):
-        print(f"Found local images directory: {local_images_dir}")
-        # List all png files locally
-        try:
-            for f in os.listdir(local_images_dir):
-                if f.endswith(".png"):
-                    full_path = os.path.join(local_images_dir, f)
-                    image_files_to_process.append((f, full_path))
-            print(f"Found {len(image_files_to_process)} images locally.")
-        except Exception as e:
-            print(f"Error reading local directory: {e}")
-    
-    # Fallback to API if local dir is empty or not found (only if we have network)
-    if not image_files_to_process:
-        print(f"Local images not found or empty. Trying to list via API (requires network)...")
-        try:
-            all_files = list_repo_files(repo_id="lil-lab/kilogram", repo_type="dataset")
-            # Filter for train-black images
-            for f in all_files:
-                if f.startswith("training/images/train-black/") and f.endswith(".png"):
-                    filename = os.path.basename(f)
-                    image_files_to_process.append((filename, f)) # Store repo path
-            print(f"Found {len(image_files_to_process)} images via API.")
-        except Exception as e:
-            print(f"Error listing files via API: {e}")
-            print("Cannot proceed without image list.")
-            return
+    print("Listing images in training/images/train-black/ ...")
+    try:
+        all_files = list_repo_files(repo_id="lil-lab/kilogram", repo_type="dataset")
+        image_files = [f for f in all_files if f.startswith("training/images/train-black/") and f.endswith(".png")]
+        print(f"Found {len(image_files)} images.")
+    except Exception as e:
+        print(f"Error listing files: {e}")
+        return
 
     # 4. Process Loop
-    for idx, (image_filename, path_info) in enumerate(image_files_to_process):
+    for idx, hf_image_path in enumerate(image_files):
+        image_filename = os.path.basename(hf_image_path)
         image_name_no_ext = os.path.splitext(image_filename)[0]
         
         if image_name_no_ext in all_labels:
-            # print(f"[{idx+1}/{len(image_files_to_process)}] Skipping {image_filename} (already processed)")
+            print(f"[{idx+1}/{len(image_files)}] Skipping {image_filename} (already processed)")
             continue
             
-        print(f"[{idx+1}/{len(image_files_to_process)}] Processing {image_filename}...")
+        print(f"[{idx+1}/{len(image_files)}] Processing {image_filename}...")
         
-        # Determine local path
-        if os.path.isabs(path_info):
-            # It's already a local absolute path
-            local_image_path = path_info
-        else:
-            # It's a repo relative path, need to download
-            try:
-                local_image_path = hf_hub_download(repo_id="lil-lab/kilogram", filename=path_info, repo_type="dataset")
-            except Exception as e:
-                print(f"Error downloading {image_filename}: {e}")
-                continue
+        try:
+            local_image_path = hf_hub_download(repo_id="lil-lab/kilogram", filename=hf_image_path, repo_type="dataset")
+        except Exception as e:
+            print(f"Error downloading {image_filename}: {e}")
+            continue
 
         # Analyze
         components, original_img = analyze_tangram_canny(local_image_path, visualize=False)
@@ -108,16 +75,13 @@ def process():
         target_annotation = None
         key_name = image_name_no_ext
         
-        # Construct repo path for annotation lookup if we only have local path
-        hf_repo_path = f"training/images/train-black/{image_filename}"
-        
         if isinstance(annotations, dict):
             if key_name in annotations:
                 target_annotation = annotations[key_name]
             elif image_filename in annotations:
                 target_annotation = annotations[image_filename]
-            elif hf_repo_path in annotations:
-                target_annotation = annotations[hf_repo_path]
+            elif hf_image_path in annotations:
+                target_annotation = annotations[hf_image_path]
         elif isinstance(annotations, list):
             for item in annotations:
                 fname = item.get('file_name') or item.get('image_id') or item.get('id')
